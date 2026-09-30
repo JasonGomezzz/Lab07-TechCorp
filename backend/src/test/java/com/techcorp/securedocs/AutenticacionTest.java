@@ -72,28 +72,28 @@ class AutenticacionTest {
     @Test
     void loginMeYLogoutRevocaElToken() throws Exception {
         String token = ingresar("admin", "Secure#2026");
-        api.perform(get("/auth/me").header("Authorization", "Bearer " + token))
+        api.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.rol").value("ADMINISTRADOR"))
             .andExpect(jsonPath("$.permisos.length()").value(9));
-        api.perform(post("/auth/logout").header("Authorization", "Bearer " + token))
+        api.perform(post("/api/auth/logout").header("Authorization", "Bearer " + token))
             .andExpect(status().isNoContent());
-        api.perform(get("/auth/me").header("Authorization", "Bearer " + token))
+        api.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.codigo").value("TOKEN_REVOCADO"));
     }
 
     @Test
     void credencialesIncorrectasYUsuariosNoActivosSeDistinguenSinFiltrarExistencia() throws Exception {
-        api.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+        api.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"admin\",\"password\":\"incorrecta\"}"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.codigo").value("CREDENCIALES_INVALIDAS"));
-        api.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+        api.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"desconocido\",\"password\":\"incorrecta\"}"))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.codigo").value("CREDENCIALES_INVALIDAS"));
-        api.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+        api.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"pedro.suspendido\",\"password\":\"Secure#2026\"}"))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.codigo").value("USUARIO_NO_ACTIVO"));
@@ -104,7 +104,7 @@ class AutenticacionTest {
         String token = ingresar("juan.temporal", "Secure#2026");
         try {
             jdbc.update("UPDATE usuario SET estado='INACTIVO' WHERE id=52");
-            api.perform(get("/auth/me").header("Authorization", "Bearer " + token))
+            api.perform(get("/api/auth/me").header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("USUARIO_NO_ACTIVO"));
         } finally {
@@ -115,23 +115,23 @@ class AutenticacionTest {
     @Test
     void auditoriaRespetaPermisosYPermiteExportarCsv() throws Exception {
         String admin = ingresar("admin", "Secure#2026");
-        api.perform(get("/auditoria").header("Authorization", "Bearer " + admin)
+        api.perform(get("/api/auditoria").header("Authorization", "Bearer " + admin)
                 .param("accion", "LOGIN"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.content[0].accion").value("LOGIN"));
-        api.perform(get("/auditoria").header("Authorization", "Bearer " + admin)
+        api.perform(get("/api/auditoria").header("Authorization", "Bearer " + admin)
                 .param("formato", "csv"))
             .andExpect(status().isOk())
             .andExpect(result -> org.assertj.core.api.Assertions.assertThat(
                 result.getResponse().getContentAsString()).startsWith("id,fecha_hora,"));
 
         String empleado = ingresar("diego.salas", "Secure#2026");
-        api.perform(get("/auditoria").header("Authorization", "Bearer " + empleado))
+        api.perform(get("/api/auditoria").header("Authorization", "Bearer " + empleado))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.codigo").value("RBAC_DENEGADO"));
 
         String gerente = ingresar("laura.mendez", "Secure#2026");
-        String respuesta = api.perform(get("/auditoria").header("Authorization", "Bearer " + gerente))
+        String respuesta = api.perform(get("/api/auditoria").header("Authorization", "Bearer " + gerente))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         for (JsonNode registro : json.readTree(respuesta).get("content")) {
             org.assertj.core.api.Assertions.assertThat(registro.get("departamentoRecurso").asText())
@@ -141,7 +141,7 @@ class AutenticacionTest {
 
     private String ingresar(String usuario, String password) throws Exception {
         String body = json.writeValueAsString(new AuthDatos(usuario, password));
-        String respuesta = api.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+        String respuesta = api.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         JsonNode datos = json.readTree(respuesta);
         return datos.get("token").asText();

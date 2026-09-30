@@ -54,22 +54,22 @@ class DocumentosTest {
         String laura = ingresar("laura.mendez");
         String invitado = ingresar("invitado.externo");
 
-        api.perform(normal(get("/documentos/502"), diego)).andExpect(status().isOk());
-        api.perform(normal(get("/documentos/505"), diego)).andExpect(status().isForbidden())
+        api.perform(normal(get("/api/documentos/502"), diego)).andExpect(status().isOk());
+        api.perform(normal(get("/api/documentos/505"), diego)).andExpect(status().isForbidden())
             .andExpect(jsonPath("$.politicas[0]").value("P1_DEPARTAMENTO"));
-        api.perform(normal(get("/documentos/503"), diego)).andExpect(status().isForbidden())
+        api.perform(normal(get("/api/documentos/503"), diego)).andExpect(status().isForbidden())
             .andExpect(jsonPath("$.politicas[0]").value("P2_NIVEL_SEGURIDAD"));
-        api.perform(conEntorno(get("/documentos/503"), laura, "19:00", "PERU", "CORPORATIVO"))
+        api.perform(conEntorno(get("/api/documentos/503"), laura, "19:00", "PERU", "CORPORATIVO"))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.politicas[0]").value("P4_HORARIO"));
-        api.perform(conEntorno(get("/documentos/504"), laura, "10:30", "PERU", "PERSONAL"))
+        api.perform(conEntorno(get("/api/documentos/504"), laura, "10:30", "PERU", "PERSONAL"))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.politicas[0]").value("P6_DISPOSITIVO"));
-        api.perform(normal(get("/documentos/502"), invitado)).andExpect(status().isOk());
-        api.perform(normal(get("/documentos/503"), invitado)).andExpect(status().isForbidden())
+        api.perform(normal(get("/api/documentos/502"), invitado)).andExpect(status().isOk());
+        api.perform(normal(get("/api/documentos/503"), invitado)).andExpect(status().isForbidden())
             .andExpect(jsonPath("$.politicas.length()").value(2));
-        api.perform(conEntorno(get("/documentos/502"), diego, "10:30", "MEXICO", "CORPORATIVO"))
+        api.perform(conEntorno(get("/api/documentos/502"), diego, "10:30", "MEXICO", "CORPORATIVO"))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.politicas[0]").value("P5B_UBICACION"));
 
-        String respuesta = api.perform(normal(get("/documentos"), diego))
+        String respuesta = api.perform(normal(get("/api/documentos"), diego))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         Set<Long> ids = new HashSet<>();
         for (JsonNode d : json.readTree(respuesta)) ids.add(d.get("id").asLong());
@@ -83,21 +83,21 @@ class DocumentosTest {
         String laura = ingresar("laura.mendez");
         String sofia = ingresar("sofia.paredes");
         try {
-            api.perform(normal(post("/documentos/511/aprobar"), carlos)).andExpect(status().isOk())
+            api.perform(normal(post("/api/documentos/511/aprobar"), carlos)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.estado").value("PUBLICADO"));
-            api.perform(normal(post("/documentos/511/aprobar"), diego)).andExpect(status().isForbidden())
+            api.perform(normal(post("/api/documentos/511/aprobar"), diego)).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.codigo").value("RBAC_DENEGADO"));
-            api.perform(normal(put("/documentos/502"), sofia).contentType(MediaType.APPLICATION_JSON)
+            api.perform(normal(put("/api/documentos/502"), sofia).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"titulo\":\"Intento\"}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("RBAC_DENEGADO"));
-            api.perform(normal(put("/documentos/502"), diego).contentType(MediaType.APPLICATION_JSON)
+            api.perform(normal(put("/api/documentos/502"), diego).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"titulo\":\"Intento\"}"))
                 .andExpect(status().isForbidden()).andExpect(jsonPath("$.politicas[0]").value("P3_PROPIEDAD"));
-            api.perform(normal(put("/documentos/502"), laura).contentType(MediaType.APPLICATION_JSON)
+            api.perform(normal(put("/api/documentos/502"), laura).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"titulo\":\"Informe actualizado\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.titulo").value("Informe actualizado"));
-            api.perform(normal(delete("/documentos/509"), laura)).andExpect(status().isNoContent());
-            api.perform(normal(get("/documentos/509"), laura)).andExpect(status().isNotFound());
+            api.perform(normal(delete("/api/documentos/509"), laura)).andExpect(status().isNoContent());
+            api.perform(normal(get("/api/documentos/509"), laura)).andExpect(status().isNotFound());
         } finally {
             jdbc.update("UPDATE documento SET estado='PENDIENTE' WHERE id=511");
             jdbc.update("UPDATE documento SET titulo='Informe de gastos Q3' WHERE id=502");
@@ -108,7 +108,7 @@ class DocumentosTest {
     @Test
     void noSePuedenEditarAtributosDeAutorizacionConPut() throws Exception {
         String laura = ingresar("laura.mendez");
-        api.perform(normal(put("/documentos/502"), laura).contentType(MediaType.APPLICATION_JSON)
+        api.perform(normal(put("/api/documentos/502"), laura).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nivelConfidencialidad\":0}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.codigo").value("DATOS_INVALIDOS"));
@@ -116,7 +116,7 @@ class DocumentosTest {
 
     private String ingresar(String username) throws Exception {
         String body = json.writeValueAsString(java.util.Map.of("username", username, "password", "Secure#2026"));
-        String respuesta = api.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+        String respuesta = api.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json.readTree(respuesta).get("token").asText();
     }

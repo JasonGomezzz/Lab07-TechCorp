@@ -48,14 +48,14 @@ class UsuariosPoliticasTest {
     void usuariosSoloParaAdministradorSinExponerHashes() throws Exception {
         String admin = ingresar("admin");
         String diego = ingresar("diego.salas");
-        String respuesta = api.perform(get("/usuarios").header("Authorization", "Bearer " + admin))
+        String respuesta = api.perform(get("/api/usuarios").header("Authorization", "Bearer " + admin))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(12))
             .andReturn().getResponse().getContentAsString();
         assertThat(respuesta).doesNotContain("passwordHash", "$2a$", "$2b$");
-        api.perform(get("/usuarios").header("Authorization", "Bearer " + diego))
+        api.perform(get("/api/usuarios").header("Authorization", "Bearer " + diego))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.codigo").value("RBAC_DENEGADO"));
-        api.perform(put("/usuarios/1").header("Authorization", "Bearer " + admin)
+        api.perform(put("/api/usuarios/1").header("Authorization", "Bearer " + admin)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"INACTIVO\"}"))
             .andExpect(status().isConflict());
     }
@@ -65,10 +65,10 @@ class UsuariosPoliticasTest {
         String admin = ingresar("admin");
         String juan = ingresar("juan.temporal");
         try {
-            api.perform(put("/usuarios/52").header("Authorization", "Bearer " + admin)
+            api.perform(put("/api/usuarios/52").header("Authorization", "Bearer " + admin)
                     .contentType(MediaType.APPLICATION_JSON).content("{\"estado\":\"INACTIVO\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.estado").value("INACTIVO"));
-            api.perform(get("/documentos").header("Authorization", "Bearer " + juan))
+            api.perform(get("/api/documentos").header("Authorization", "Bearer " + juan))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.codigo").value("USUARIO_NO_ACTIVO"));
         } finally {
@@ -87,14 +87,14 @@ class UsuariosPoliticasTest {
             Map.entry("tipoContrato", "INTERNO"), Map.entry("estado", "ACTIVO")));
         Long id = null;
         try {
-            String respuesta = api.perform(post("/usuarios").header("Authorization", "Bearer " + admin)
+            String respuesta = api.perform(post("/api/usuarios").header("Authorization", "Bearer " + admin)
                     .contentType(MediaType.APPLICATION_JSON).content(cuerpo))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.rol").value("EMPLEADO"))
                 .andReturn().getResponse().getContentAsString();
             assertThat(respuesta).doesNotContain("password", "hash");
             id = json.readTree(respuesta).get("id").asLong();
-            api.perform(put("/usuarios/{id}", id).header("Authorization", "Bearer " + admin)
+            api.perform(put("/api/usuarios/{id}", id).header("Authorization", "Bearer " + admin)
                     .contentType(MediaType.APPLICATION_JSON).content("{\"rol\":\"SUPERVISOR\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.rol").value("SUPERVISOR"));
         } finally {
@@ -107,28 +107,28 @@ class UsuariosPoliticasTest {
         String admin = ingresar("admin");
         String laura = ingresar("laura.mendez");
         try {
-            api.perform(put("/politicas/P4_HORARIO").header("Authorization", "Bearer " + admin)
+            api.perform(put("/api/politicas/P4_HORARIO").header("Authorization", "Bearer " + admin)
                     .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":false}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.activa").value(false));
-            api.perform(get("/documentos/503").header("Authorization", "Bearer " + laura)
+            api.perform(get("/api/documentos/503").header("Authorization", "Bearer " + laura)
                     .header("X-Sim-Hora", "19:00").header("X-Sim-Dispositivo", "CORPORATIVO"))
                 .andExpect(status().isOk());
         } finally {
-            api.perform(put("/politicas/P4_HORARIO").header("Authorization", "Bearer " + admin)
+            api.perform(put("/api/politicas/P4_HORARIO").header("Authorization", "Bearer " + admin)
                     .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":true}"))
                 .andExpect(status().isOk());
         }
-        api.perform(get("/documentos/503").header("Authorization", "Bearer " + laura)
+        api.perform(get("/api/documentos/503").header("Authorization", "Bearer " + laura)
                 .header("X-Sim-Hora", "19:00").header("X-Sim-Dispositivo", "CORPORATIVO"))
             .andExpect(status().isForbidden()).andExpect(jsonPath("$.politicas[0]").value("P4_HORARIO"));
-        api.perform(put("/politicas/P7_ESTADO_USUARIO").header("Authorization", "Bearer " + admin)
+        api.perform(put("/api/politicas/P7_ESTADO_USUARIO").header("Authorization", "Bearer " + admin)
                 .contentType(MediaType.APPLICATION_JSON).content("{\"activa\":false}"))
             .andExpect(status().isConflict());
     }
 
     private String ingresar(String username) throws Exception {
         String body = json.writeValueAsString(Map.of("username", username, "password", "Secure#2026"));
-        String respuesta = api.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
+        String respuesta = api.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json.readTree(respuesta).get("token").asText();
     }
