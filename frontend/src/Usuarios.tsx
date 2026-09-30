@@ -1,0 +1,34 @@
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Pencil, Plus, Search } from 'lucide-react'
+import { api, errorTexto } from './api'
+import { Titulo, Vacio } from './App'
+import type { Usuario } from './types'
+
+const roles = ['ADMINISTRADOR', 'GERENTE', 'SUPERVISOR', 'EMPLEADO', 'AUDITOR', 'INVITADO']
+const departamentos = ['TI', 'FINANZAS', 'RRHH', 'AUDITORIA', 'OPERACIONES']
+type Formulario = { username: string; nombre: string; correo: string; password: string; rol: string; departamento: string; nivelSeguridad: number; pais: string; tipoContrato: string; estado: string; accesoHasta: string }
+const vacio: Formulario = { username: '', nombre: '', correo: '', password: '', rol: 'EMPLEADO', departamento: 'FINANZAS', nivelSeguridad: 1, pais: 'PERU', tipoContrato: 'INTERNO', estado: 'ACTIVO', accesoHasta: '' }
+
+export function Usuarios() {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [form, setForm] = useState<Formulario>(vacio)
+  const [seleccionado, setSeleccionado] = useState<Usuario | null>(null)
+  const [abierto, setAbierto] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [error, setError] = useState('')
+  const [aviso, setAviso] = useState('')
+  const cargar = useCallback(async () => { try { setUsuarios((await api.get<Usuario[]>('/usuarios')).data); setError('') } catch (e) { setError(errorTexto(e)) } }, [])
+  useEffect(() => { void cargar() }, [cargar])
+  function nuevo() { setSeleccionado(null); setForm(vacio); setAbierto(true) }
+  function editar(u: Usuario) { setSeleccionado(u); setForm({ username: u.username, nombre: u.nombre, correo: u.correo, password: '', rol: u.rol, departamento: u.departamento, nivelSeguridad: u.nivelSeguridad, pais: u.pais, tipoContrato: u.tipoContrato, estado: u.estado, accesoHasta: u.accesoHasta || '' }); setAbierto(true) }
+  async function guardar(e: FormEvent) { e.preventDefault(); try { const datos = { ...form, accesoHasta: form.accesoHasta || null, password: form.password || undefined }; if (seleccionado) await api.put(`/usuarios/${seleccionado.id}`, datos); else await api.post('/usuarios', datos); setAbierto(false); setAviso('Usuario guardado correctamente'); await cargar() } catch (e) { setError(errorTexto(e)) } }
+  const visibles = usuarios.filter(u => `${u.username} ${u.nombre} ${u.rol} ${u.departamento}`.toLowerCase().includes(busqueda.toLowerCase()))
+  return <><Titulo eyebrow="Gestión de identidad" titulo="Usuarios" descripcion="Cuentas, roles y atributos que utiliza el motor de autorización." action={<button className="btn-primary" onClick={nuevo}><Plus size={16} /> Nuevo usuario</button>} />
+    {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}{aviso && <p role="status" className="mb-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">{aviso}</p>}
+    <div className="card mb-5 flex items-center gap-2 p-3"><Search size={18} className="text-slate-400" /><input className="w-full outline-none" placeholder="Buscar usuarios" aria-label="Buscar usuarios" value={busqueda} onChange={e => setBusqueda(e.target.value)} /></div>
+    {visibles.length === 0 ? <Vacio texto="No se encontraron usuarios." /> : <div className="card overflow-x-auto"><table className="w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-4">Usuario</th><th className="px-5 py-4">Rol</th><th className="px-5 py-4">Departamento</th><th className="px-5 py-4">Nivel</th><th className="px-5 py-4">Estado</th><th className="px-5 py-4"></th></tr></thead><tbody>{visibles.map(u => <tr key={u.id} className="border-t border-slate-100"><td className="px-5 py-4"><b>{u.nombre}</b><p className="text-slate-500">{u.username}</p></td><td className="px-5 py-4">{u.rol}</td><td className="px-5 py-4">{u.departamento}</td><td className="px-5 py-4">{u.nivelSeguridad}</td><td className="px-5 py-4"><span className={`badge ${u.estado === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>{u.estado}</span></td><td className="px-5 py-4"><button className="btn-ghost" onClick={() => editar(u)}><Pencil size={15} /> Editar</button></td></tr>)}</tbody></table></div>}
+    {abierto && <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true"><div className="card max-h-[90vh] w-full max-w-2xl overflow-auto p-6"><div className="mb-5 flex items-center justify-between"><h2 className="text-xl font-bold">{seleccionado ? 'Editar usuario' : 'Crear usuario'}</h2><button className="btn-ghost" onClick={() => setAbierto(false)}>Cerrar</button></div><form onSubmit={guardar} className="grid gap-4 sm:grid-cols-2">{input('Usuario', 'username', seleccionado !== null)}{input('Nombre', 'nombre')}{input('Correo', 'correo', false, 'email')}{input(seleccionado ? 'Nueva contraseña (opcional)' : 'Contraseña', 'password', false, 'password')}<Select label="Rol" value={form.rol} options={roles} onChange={v => setForm({ ...form, rol: v })} /><Select label="Departamento" value={form.departamento} options={departamentos} onChange={v => setForm({ ...form, departamento: v })} /><label><span className="label">Nivel de seguridad</span><select className="field" value={form.nivelSeguridad} onChange={e => setForm({ ...form, nivelSeguridad: Number(e.target.value) })}>{[0,1,2,3,4,5].map(n => <option key={n}>{n}</option>)}</select></label><Select label="País" value={form.pais} options={['PERU', 'MEXICO']} onChange={v => setForm({ ...form, pais: v })} /><Select label="Contrato" value={form.tipoContrato} options={['INTERNO', 'EXTERNO']} onChange={v => setForm({ ...form, tipoContrato: v })} /><Select label="Estado" value={form.estado} options={['ACTIVO', 'SUSPENDIDO', 'INACTIVO']} onChange={v => setForm({ ...form, estado: v })} /><label><span className="label">Acceso hasta (invitados)</span><input className="field" type="date" value={form.accesoHasta} onChange={e => setForm({ ...form, accesoHasta: e.target.value })} /></label><div className="sm:col-span-2"><button className="btn-primary">Guardar usuario</button></div></form></div></div>}
+  </>
+  function input(label: string, key: 'username' | 'nombre' | 'correo' | 'password', disabled = false, type = 'text') { return <label><span className="label">{label}</span><input className="field" type={type} disabled={disabled} required={key !== 'password' || !seleccionado} value={form[key]} onChange={e => setForm({ ...form, [key]: e.target.value })} /></label> }
+}
+function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (v: string) => void }) { return <label><span className="label">{label}</span><select className="field" value={value} onChange={e => onChange(e.target.value)}>{options.map(o => <option key={o}>{o}</option>)}</select></label> }

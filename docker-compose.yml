@@ -1,0 +1,48 @@
+services:
+  mysql:
+    image: mysql:8.4
+    # El entorno local no replica datos; permite crear los triggers con el usuario de la app.
+    command: --skip-log-bin
+    environment:
+      MYSQL_DATABASE: securedocs
+      MYSQL_USER: ${DB_USER:?Definir DB_USER en .env}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD en .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Definir DB_ROOT_PASSWORD en .env}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_datos:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backend:
+    build: ./backend
+    environment:
+      SPRING_PROFILES_ACTIVE: demo
+      DB_URL: jdbc:mysql://mysql:3306/securedocs
+      DB_USER: ${DB_USER:?Definir DB_USER en .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD en .env}
+      JWT_SECRET: ${JWT_SECRET:?Definir JWT_SECRET en .env}
+      SEED_PASSWORD: ${SEED_PASSWORD:-Secure#2026}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_DEMO: ${VITE_DEMO:-true}
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_datos:
