@@ -39,7 +39,8 @@ public class ConfiguracionSeguridad {
                 .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/instancia", "/api/actuator/health/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .anyRequest().authenticated())
+                .requestMatchers("/api/**").authenticated()
+                .anyRequest().permitAll())
             .exceptionHandling(errores -> errores.authenticationEntryPoint((request, response, ex) ->
                 errorSinToken(request, response, json, auditoria, entornoResolver)))
             .addFilterBefore(new FiltroJwt(jwt, usuarios, json, auditoria, entornoResolver),
