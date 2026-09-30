@@ -99,7 +99,7 @@ Para detener todo: `docker compose down`.
 
 ## Parte B: AWS
 
-Región us-east-1, VPC `10.0.0.0/16` con dos subredes públicas (`10.0.1.0/24` en us-east-1a y `10.0.2.0/24` en us-east-1b), dos instancias EC2 `t2.micro` con Apache que muestran su `instance-id` y su zona, y un Application Load Balancer (HTTP:80) con health checks sobre `/`. Los pasos y las capturas están en el informe. Al terminar se eliminan el ALB, el target group, las EC2 y la red para no generar costos.
+Región us-east-1, VPC `10.0.0.0/16` con dos subredes públicas (`10.0.1.0/24` en us-east-1a y `10.0.2.0/24` en us-east-1b), dos instancias EC2 `t2.micro` con Apache que muestran su `instance-id` y su zona, y un Application Load Balancer (HTTP:80) con health checks sobre `/`. El `user-data` de las instancias está en `aws/user-data.sh`. Se usó `t3.micro` porque es el tipo elegible para la capa gratuita de la cuenta. Los pasos y las capturas están en el informe. Al terminar se eliminan el ALB, el target group, las EC2 y la red para no generar costos.
 
 ## Desarrollo y comprobaciones
 
